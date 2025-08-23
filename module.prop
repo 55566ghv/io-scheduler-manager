@@ -1,0 +1,7 @@
+id=io.scheduler.manager
+name=I/O Scheduler Manager
+version=v1.0
+versionCode=1
+author=KernelSU Developer
+description=Manage and switch I/O schedulers on boot
+webUI=true
