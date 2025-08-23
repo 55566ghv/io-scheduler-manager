@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I/O调度器管理</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .status-card {
+            background-color: #e9f7ef;
+            border-left: 4px solid #2ecc71;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            border: none;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .scheduler-info {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .scheduler-info h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .scheduler-info ul {
+            padding-left: 20px;
+        }
+        .scheduler-info li {
+            margin-bottom: 5px;
+        }
+        .current-scheduler {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .success {
+            color: #27ae60;
+        }
+        .error {
+            color: #e74c3c;
+        }
+        .warning {
+            color: #f39c12;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>I/O调度器管理</h1>
+        
+        <div class="status-card">
+            <h3>当前状态</h3>
+            <p>模块版本: <span id="module-version">v1.0</span></p>
+            <p>当前调度器: <span id="current-scheduler" class="current-scheduler">加载中...</span></p>
+            <p>设备数量: <span id="device-count">0</span></p>
+        </div>
+        
+        <div class="scheduler-info">
+            <h3>调度器说明</h3>
+            <ul>
+                <li><strong>none</strong> - 无调度器，直接处理请求</li>
+                <li><strong>mq-deadline</strong> - 延续传统deadline调度器的设计，适用于大多数场景</li>
+                <li><strong>kyber</strong> - 低延迟调度器，适用于快速存储设备（默认）</li>
+                <li><strong>bfq</strong> - 公平队列调度器，适用于桌面交互场景</li>
+            </ul>
+        </div>
+        
+        <form id="scheduler-form">
+            <div class="form-group">
+                <label for="scheduler-select">选择调度器:</label>
+                <select id="scheduler-select" name="scheduler">
+                    <option value="none">none</option>
+                    <option value="mq-deadline">mq-deadline</option>
+                </select>
+            </div>
+            
+            <button type="submit">应用调度器</button>
+        </form>
+        
+        <div id="message-area" style="margin-top: 20px;"></div>
+    </div>
+    
+    <script>
+        // API端点
+        const API_BASE = './api';
+        
+        // 页面加载时获取当前状态
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentScheduler();
+            updateSchedulerOptions();
+            
+            // 表单提交事件
+            document.getElementById('scheduler-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                applyScheduler();
+            });
+        });
+        
+        // 加载当前调度器状态
+        function loadCurrentScheduler() {
+            fetch(`${API_BASE}/status`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('current-scheduler').textContent = data.current_scheduler;
+                    document.getElementById('device-count').textContent = data.device_count;
+                    document.getElementById('module-version').textContent = data.module_version;
+                })
+                .catch(error => {
+                    showMessage('获取当前状态失败: ' + error.message, 'error');
+                });
+        }
+        
+        // 更新调度器选项
+        function updateSchedulerOptions() {
+            fetch(`${API_BASE}/schedulers`)
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('scheduler-select');
+                    // 清空现有选项
+                    select.innerHTML = '';
+                    
+                    // 添加新选项
+                    data.schedulers.forEach(scheduler => {
+                        const option = document.createElement('option');
+                        option.value = scheduler;
+                        option.textContent = scheduler;
+                        if (scheduler === data.current) {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    showMessage('获取调度器列表失败: ' + error.message, 'error');
+                });
+        }
+        
+        // 应用新调度器
+        function applyScheduler() {
+            const scheduler = document.getElementById('scheduler-select').value;
+            const formData = new FormData();
+            formData.append('scheduler', scheduler);
+            
+            fetch(`${API_BASE}/apply`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(`成功应用调度器: ${scheduler}`, 'success');
+                    // 更新显示
+                    document.getElementById('current-scheduler').textContent = scheduler;
+                } else {
+                    showMessage(`应用调度器失败: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('应用调度器时发生错误: ' + error.message, 'error');
+            });
+        }
+        
+        // 显示消息
+        function showMessage(message, type) {
+            const messageArea = document.getElementById('message-area');
+            messageArea.innerHTML = `<div class="${type}">${message}</div>`;
+            
+            // 3秒后自动清除消息
+            setTimeout(() => {
+                messageArea.innerHTML = '';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
