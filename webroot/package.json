@@ -1,0 +1,16 @@
+{
+  "name": "io-scheduler-manager-webui",
+  "version": "1.0.0",
+  "description": "WebUI for I/O Scheduler Manager KernelSU Module",
+  "main": "index.html",
+  "dependencies": {
+    "kernelsu": "^1.0.0"
+  },
+  "keywords": [
+    "kernelsu",
+    "io-scheduler",
+    "android"
+  ],
+  "author": "KernelSU Developer",
+  "license": "MIT"
+}
